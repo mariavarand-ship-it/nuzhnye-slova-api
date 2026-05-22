@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(405).json({
       error: "Method not allowed",
       details: "Use POST request",
-      version: "yandex-short-distinct-no-hedgehog-v2",
+      version: "yandex-short-no-hedgehog-v3",
     });
   }
 
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       return res.status(500).json({
         error: "Missing YANDEX_CLOUD_API_KEY",
         details: "Add YANDEX_CLOUD_API_KEY in Vercel Environment Variables",
-        version: "yandex-short-distinct-no-hedgehog-v2",
+        version: "yandex-short-no-hedgehog-v3",
       });
     }
 
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       return res.status(500).json({
         error: "Missing YANDEX_CLOUD_FOLDER",
         details: "Add YANDEX_CLOUD_FOLDER in Vercel Environment Variables",
-        version: "yandex-short-distinct-no-hedgehog-v2",
+        version: "yandex-short-no-hedgehog-v3",
       });
     }
 
@@ -39,99 +39,52 @@ export default async function handler(req, res) {
     const type = body?.type;
 
     const prompts = {
-      mood: `
-Кнопка: «что с настроением».
+      mood:
+        "Кнопка «что с настроением». Напиши одну короткую смешную фразу про состояние/настроение. Не хвали. Не советуй. Без слов: внутренний, ёжик, ежик, диспетчер.",
 
-Сделай короткую фразу-наблюдение о состоянии человека.
-Это НЕ похвала и НЕ совет.
+      wisdom:
+        "Кнопка «мудрость». Напиши одну короткую мягкую мысль дня. Не хвали. Не описывай настроение. Без нравоучения. Без слов: внутренний, ёжик, ежик, диспетчер.",
 
-Формат:
-смешная сводка о настроении, без слов «внутренний», «ёжик», «диспетчер».
-
-Направление:
-настроение помялось, день шуршит, облако сидит боком, лампа моргает, булочка задумалась, носок философствует.
-`.trim(),
-
-      wisdom: `
-Кнопка: «мудрость».
-
-Сделай короткую мягкую мысль дня.
-Это НЕ похвала и НЕ описание настроения.
-
-Формат:
-маленькое спокойное наблюдение о жизни, без учительства и без абсурдного персонажа в центре.
-
-Направление:
-можно не решать всё сразу, пауза тоже действие, день не требует героизма, тишина иногда умнее спешки.
-`.trim(),
-
-      praise: `
-Кнопка: «похвали меня».
-
-Сделай короткую прямую похвалу человеку.
-Это НЕ настроение и НЕ совет.
-
-Формат:
-фраза должна начинаться с «ты...» или «в тебе...».
-Конкретно, тепло, без мотивационного плаката.
-
-Направление:
-ты замечаешь тонкое, ты не огрубела, в тебе есть живая сила, ты умеешь быть настоящей.
-`.trim(),
+      praise:
+        "Кнопка «похвали меня». Напиши одну короткую прямую похвалу человеку. Начни с «ты» или «в тебе». Не советуй. Без слов: внутренний, ёжик, ежик, диспетчер.",
     };
 
     if (!type || !prompts[type]) {
       return res.status(400).json({
         error: "Invalid type",
         details: "Use one of: mood, wisdom, praise",
-        version: "yandex-short-distinct-no-hedgehog-v2",
+        version: "yandex-short-no-hedgehog-v3",
       });
     }
 
     const instructions = `
-Ты пишешь для проекта «Нужные слова».
+Пиши для проекта «Нужные слова».
 
-Это маленький авторский оракул поддержки.
-Это не чат-бот и не психологическая консультация.
-
-Общие правила:
+Требования:
 - русский язык
-- одна готовая фраза
+- только одна готовая фраза
 - 1 предложение
-- максимум 120 символов
-- без вариантов
-- без пояснений
+- до 110 символов
 - без кавычек
-- живой, тёплый, немного смешной стиль
-- без корпоративного тона
+- без пояснений
+- тёпло, живо, немного смешно
+- не корпоративно
 - без токсичного позитива
 - без эзотерики
 - без диагнозов
-- без советов обратиться к специалисту
-- без обещаний, что всё точно будет хорошо
-- без банальностей вроде «ты всё сможешь», «верь в себя», «будь лучшей версией себя»
+- без «ты всё сможешь», «верь в себя», «будь лучшей версией себя»
 
-Жёстко запрещено:
-- не используй слово «диспетчер»
-- не используй слово «ёжик»
-- не используй слово «ежик»
-- не используй слово «внутренний»
-- не используй фразы «внутренний диспетчер», «внутренний ёжик», «внутренний ежик»
-- не начинай все фразы одинаково
-- не пиши длинно
-- не смешивай типы кнопок
+Запрещённые слова:
+внутренний, ёжик, ежик, диспетчер.
 
-Различия между кнопками:
-1. mood — смешное наблюдение о текущем состоянии. Не хвалить. Не советовать.
-2. wisdom — маленькая мысль дня. Не хвалить. Не описывать настроение.
-3. praise — прямая похвала человеку. Не давать совет. Не делать сводку настроения.
+Различай типы:
+mood — смешное наблюдение о настроении.
+wisdom — тихая мысль дня.
+praise — прямая похвала человеку.
 
-Для mood можно использовать мягкий абсурд:
-лампа, булочка, облако, самовар, носок, чайник, карман, плед, маленькая радость, смешной свет, кривой воротник.
-
-Для wisdom меньше абсурда, больше тихой ясности.
-
-Для praise меньше абсурда, больше прямого тёплого признания ценности человека.
+Для mood можно: лампа, булочка, облако, самовар, носок, чайник, карман, плед.
+Для wisdom — меньше абсурда, больше ясности.
+Для praise — без абсурда, тепло и прямо.
 `.trim();
 
     const yandexResponse = await fetch("https://ai.api.cloud.yandex.net/v1/responses", {
@@ -144,7 +97,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: `gpt://${folderId}/deepseek-v32/latest`,
         temperature: 0.55,
-        max_output_tokens: 180,
+        max_output_tokens: 600,
         instructions,
         input: prompts[type],
       }),
@@ -160,7 +113,7 @@ export default async function handler(req, res) {
         error: "Yandex AI returned non-JSON response",
         status: 500,
         details: rawText,
-        version: "yandex-short-distinct-no-hedgehog-v2",
+        version: "yandex-short-no-hedgehog-v3",
       });
     }
 
@@ -169,35 +122,18 @@ export default async function handler(req, res) {
         error: "Yandex AI request failed",
         status: yandexResponse.status,
         details: data,
-        version: "yandex-short-distinct-no-hedgehog-v2",
+        version: "yandex-short-no-hedgehog-v3",
       });
     }
 
-    let message = data?.output_text;
-
-    if (!message && Array.isArray(data?.output)) {
-      for (const item of data.output) {
-        if (Array.isArray(item?.content)) {
-          for (const contentItem of item.content) {
-            if (contentItem?.text) {
-              message = contentItem.text;
-              break;
-            }
-          }
-        }
-
-        if (message) {
-          break;
-        }
-      }
-    }
+    let message = extractMessage(data);
 
     if (!message) {
       return res.status(500).json({
         error: "Empty Yandex AI response",
         status: 500,
         details: data,
-        version: "yandex-short-distinct-no-hedgehog-v2",
+        version: "yandex-short-no-hedgehog-v3",
       });
     }
 
@@ -205,16 +141,36 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       message,
-      version: "yandex-short-distinct-no-hedgehog-v2",
+      version: "yandex-short-no-hedgehog-v3",
     });
   } catch (err) {
     return res.status(500).json({
       error: "Server error",
       status: 500,
       details: err.message,
-      version: "yandex-short-distinct-no-hedgehog-v2",
+      version: "yandex-short-no-hedgehog-v3",
     });
   }
+}
+
+function extractMessage(data) {
+  if (data?.output_text) {
+    return data.output_text;
+  }
+
+  if (Array.isArray(data?.output)) {
+    for (const item of data.output) {
+      if (Array.isArray(item?.content)) {
+        for (const contentItem of item.content) {
+          if (contentItem?.text) {
+            return contentItem.text;
+          }
+        }
+      }
+    }
+  }
+
+  return "";
 }
 
 function cleanMessage(message) {
@@ -232,8 +188,13 @@ function cleanMessage(message) {
   cleaned = cleaned.replace(/ежик/gi, "самовар");
   cleaned = cleaned.replace(/внутренний/gi, "маленький");
 
-  if (cleaned.length > 150) {
-    cleaned = cleaned.slice(0, 147).trim();
+  const sentences = cleaned.match(/[^.!?]+[.!?]?/g);
+  if (sentences && sentences.length > 0) {
+    cleaned = sentences[0].trim();
+  }
+
+  if (cleaned.length > 130) {
+    cleaned = cleaned.slice(0, 127).trim();
 
     const lastSpaceIndex = cleaned.lastIndexOf(" ");
     if (lastSpaceIndex > 70) {
