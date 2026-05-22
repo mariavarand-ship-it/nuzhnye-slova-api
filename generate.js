@@ -64,6 +64,26 @@ function cleanMessage(text) {
     .replace(/\s+/g, " ");
 }
 
+function extractOutputText(data) {
+  if (data?.output_text) {
+    return data.output_text;
+  }
+
+  const output = data?.output || [];
+
+  for (const item of output) {
+    const content = item?.content || [];
+
+    for (const part of content) {
+      if (part?.text) {
+        return part.text;
+      }
+    }
+  }
+
+  return "";
+}
+
 function isGoodMessage(text) {
   if (!text) return false;
   if (text.length < 20) return false;
@@ -108,54 +128,54 @@ export default async function handler(request, response) {
       });
     }
 
-    const apiKey = process.env.DEEPSEEK_API_KEY;
+    const apiKey = process.env.YANDEX_CLOUD_API_KEY;
+    const folderId = process.env.YANDEX_CLOUD_FOLDER;
 
     if (!apiKey) {
       return response.status(500).json({
-        error: "Missing DeepSeek API key"
+        error: "Missing Yandex Cloud API key"
       });
     }
 
-    const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
+    if (!folderId) {
+      return response.status(500).json({
+        error: "Missing Yandex Cloud folder id"
+      });
+    }
+
+    const yandexResponse = await fetch("https://ai.api.cloud.yandex.net/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
-        messages: [
-          {
-            role: "system",
-            content: getPrompt(type)
-          },
-          {
-            role: "user",
-            content: "Сгенерируй одну фразу."
-          }
-        ],
-        temperature: 1.1,
-        max_tokens: 120
+        model: `gpt://${folderId}/deepseek-v32/latest`,
+        temperature: 0.7,
+        instructions: getPrompt(type),
+        input: "Сгенерируй одну фразу.",
+        max_output_tokens: 160
       })
     });
 
-    if (!deepseekResponse.ok) {
-      const errorText = await deepseekResponse.text();
+    if (!yandexResponse.ok) {
+      const errorText = await yandexResponse.text();
 
       return response.status(502).json({
-        error: "DeepSeek request failed",
-        status: deepseekResponse.status,
+        error: "Yandex AI request failed",
+        status: yandexResponse.status,
         details: errorText
       });
     }
 
-    const data = await deepseekResponse.json();
-    const message = cleanMessage(data?.choices?.[0]?.message?.content);
+    const data = await yandexResponse.json();
+    const message = cleanMessage(extractOutputText(data));
 
     if (!isGoodMessage(message)) {
       return response.status(422).json({
         error: "Generated message did not pass validation",
-        message
+        message,
+        raw: data
       });
     }
 
