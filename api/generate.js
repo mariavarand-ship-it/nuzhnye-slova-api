@@ -1,11 +1,60 @@
-const ALLOWED_TYPES = ["mood", "wisdom", "praise"];
+export default async function handler(req, res) {
+  // CORS: разрешаем запросы с GitHub Pages и вообще из браузера
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-function getPrompt(type) {
-  const baseRules = `
-Ты пишешь фразы для проекта «Нужные слова».
+  // Браузер может сначала отправить OPTIONS-запрос — это нормально
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-Это не чат-бот и не психологическая консультация.
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      error: "Method not allowed",
+      details: "Use POST request",
+    });
+  }
+
+  try {
+    const apiKey = process.env.YANDEX_CLOUD_API_KEY;
+    const folderId = process.env.YANDEX_CLOUD_FOLDER;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "Missing YANDEX_CLOUD_API_KEY",
+        details: "Add YANDEX_CLOUD_API_KEY in Vercel Environment Variables",
+      });
+    }
+
+    if (!folderId) {
+      return res.status(500).json({
+        error: "Missing YANDEX_CLOUD_FOLDER",
+        details: "Add YANDEX_CLOUD_FOLDER in Vercel Environment Variables",
+      });
+    }
+
+    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    const type = body?.type;
+
+    const prompts = {
+      mood: "Сгенерируй маленькое смешное донесение из внутреннего мира человека: что сейчас с настроением.",
+      wisdom: "Сгенерируй мягкую мысль дня без нравоучения.",
+      praise: "Сгенерируй тёплую похвалу человеку без мотивационного плаката.",
+    };
+
+    if (!type || !prompts[type]) {
+      return res.status(400).json({
+        error: "Invalid type",
+        details: "Use one of: mood, wisdom, praise",
+      });
+    }
+
+    const instructions = `
+Ты пишешь для проекта «Нужные слова».
+
 Это маленький авторский оракул поддержки.
+Это не чат-бот и не психологическая консультация.
 
 Стиль:
 - русский язык
@@ -19,153 +68,64 @@ function getPrompt(type) {
 - без советов обратиться к специалисту
 - без обещаний, что всё точно будет хорошо
 - без банальностей вроде «ты всё сможешь», «верь в себя», «будь лучшей версией себя»
-
-Формат:
+- 1–2 предложения
+- до 260 символов
 - только одна готовая фраза
 - без вариантов
 - без пояснений
 - без кавычек
-- 1–2 предложения
-- до 260 символов
-- можно использовать мягкий абсурд: внутренний ёжик, лампа, булочка, диспетчер, облако, самовар, маленькая радость
-`;
 
-  if (type === "mood") {
-    return `${baseRules}
+Можно использовать мягкий абсурд:
+внутренний ёжик, лампа, булочка, диспетчер, облако, самовар, маленькая радость.
+`.trim();
 
-Кнопка: «что с настроением»
-Задача: сгенерируй фразу, которая мягко меняет состояние человека.
-Фраза должна быть похожа на маленькое смешное донесение из внутреннего мира.`;
-  }
-
-  if (type === "wisdom") {
-    return `${baseRules}
-
-Кнопка: «мудрость»
-Задача: сгенерируй короткую мысль дня.
-Фраза должна быть не нравоучением, а мягким наблюдением, которое помогает выдохнуть.`;
-  }
-
-  if (type === "praise") {
-    return `${baseRules}
-
-Кнопка: «похвали меня»
-Задача: сгенерируй тёплую похвалу человеку.
-Фраза должна звучать не как мотивационный плакат, а как точное, нежное, немного странное признание ценности.`;
-  }
-
-  return baseRules;
-}
-
-function cleanMessage(text) {
-  return String(text || "")
-    .trim()
-    .replace(/^["«]+|["»]+$/g, "")
-    .replace(/\s+/g, " ");
-}
-
-function isGoodMessage(text) {
-  if (!text) return false;
-  if (text.length < 20) return false;
-  if (text.length > 300) return false;
-
-  const forbidden = [
-    "обратитесь к специалисту",
-    "лучшей версией себя",
-    "верь в себя",
-    "ты всё сможешь",
-    "вселенная",
-    "успех неизбежен"
-  ];
-
-  const lower = text.toLowerCase();
-
-  return !forbidden.some(word => lower.includes(word));
-}
-
-export default async function handler(request, response) {
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (request.method === "OPTIONS") {
-    return response.status(200).end();
-  }
-
-  if (request.method !== "POST") {
-    return response.status(405).json({
-      error: "Method not allowed"
-    });
-  }
-
-  try {
-    const { type } = request.body || {};
-
-    if (!ALLOWED_TYPES.includes(type)) {
-      return response.status(400).json({
-        error: "Unknown generation type",
-        receivedType: type
-      });
-    }
-
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-
-    if (!apiKey) {
-      return response.status(500).json({
-        error: "Missing DeepSeek API key"
-      });
-    }
-
-    const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
+    const yandexResponse = await fetch("https://ai.api.cloud.yandex.net/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`
+        "Authorization": `Bearer ${apiKey}`,
+        "x-folder-id": folderId,
       },
       body: JSON.stringify({
-        model: "deepseek-v4-flash",
-        messages: [
-          {
-            role: "system",
-            content: getPrompt(type)
-          },
-          {
-            role: "user",
-            content: "Сгенерируй одну фразу."
-          }
-        ],
-        temperature: 1.1,
-        max_tokens: 120
-      })
+        model: `gpt://${folderId}/deepseek-v32/latest`,
+        temperature: 0.7,
+        max_output_tokens: 120,
+        instructions,
+        input: prompts[type],
+      }),
     });
 
-    if (!deepseekResponse.ok) {
-      const errorText = await deepseekResponse.text();
+    const data = await yandexResponse.json().catch(() => null);
 
-      return response.status(502).json({
-        error: "DeepSeek request failed",
-        status: deepseekResponse.status,
-        details: errorText
+    if (!yandexResponse.ok) {
+      return res.status(yandexResponse.status).json({
+        error: "Yandex AI request failed",
+        status: yandexResponse.status,
+        details: data,
       });
     }
 
-    const data = await deepseekResponse.json();
-    const message = cleanMessage(data?.choices?.[0]?.message?.content);
+    const message =
+      data?.output_text ||
+      data?.output?.[0]?.content?.[0]?.text ||
+      data?.output?.[0]?.content?.find?.((item) => item.type === "output_text")?.text;
 
-    if (!isGoodMessage(message)) {
-      return response.status(422).json({
-        error: "Generated message did not pass validation",
-        message
+    if (!message) {
+      return res.status(500).json({
+        error: "Empty Yandex AI response",
+        status: 500,
+        details: data,
       });
     }
 
-    return response.status(200).json({
-      message
+    return res.status(200).json({
+      message: message.trim(),
     });
-  } catch (error) {
-    return response.status(500).json({
+  } catch (err) {
+    return res.status(500).json({
       error: "Server error",
-      details: error?.message || String(error)
+      status: 500,
+      details: err.message,
     });
   }
 }
