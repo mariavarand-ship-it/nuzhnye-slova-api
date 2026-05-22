@@ -123,9 +123,15 @@ export default async function handler(request, response) {
       })
     });
 
-    if (!deepseekResponse.ok) {
-      return response.status(502).json({ error: "DeepSeek request failed" });
-    }
+  if (!deepseekResponse.ok) {
+  const errorText = await deepseekResponse.text();
+
+  return response.status(502).json({
+    error: "DeepSeek request failed",
+    status: deepseekResponse.status,
+    details: errorText
+  });
+}
 
     const data = await deepseekResponse.json();
     const message = cleanMessage(data?.choices?.[0]?.message?.content);
