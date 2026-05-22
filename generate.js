@@ -107,7 +107,7 @@ export default async function handler(request, response) {
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "deepseek-v4-flash",
         messages: [
           {
             role: "system",
