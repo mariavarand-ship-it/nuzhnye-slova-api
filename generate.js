@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: `gpt://${folderId}/deepseek-v32/latest`,
         temperature: 0.7,
-        max_output_tokens: 120,
+        max_output_tokens: 500,
         instructions,
         input: prompts[type],
       }),
