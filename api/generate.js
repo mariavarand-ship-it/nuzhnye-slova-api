@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(405).json({
       error: "Method not allowed",
       details: "Use POST request",
-      version: "yandex-500-clean",
+      version: "yandex-short-distinct-v1",
     });
   }
 
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       return res.status(500).json({
         error: "Missing YANDEX_CLOUD_API_KEY",
         details: "Add YANDEX_CLOUD_API_KEY in Vercel Environment Variables",
-        version: "yandex-500-clean",
+        version: "yandex-short-distinct-v1",
       });
     }
 
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       return res.status(500).json({
         error: "Missing YANDEX_CLOUD_FOLDER",
         details: "Add YANDEX_CLOUD_FOLDER in Vercel Environment Variables",
-        version: "yandex-500-clean",
+        version: "yandex-short-distinct-v1",
       });
     }
 
@@ -39,16 +39,52 @@ export default async function handler(req, res) {
     const type = body?.type;
 
     const prompts = {
-      mood: "Сгенерируй маленькое смешное донесение из внутреннего мира человека: что сейчас с настроением.",
-      wisdom: "Сгенерируй мягкую мысль дня без нравоучения.",
-      praise: "Сгенерируй тёплую похвалу человеку без мотивационного плаката.",
+      mood: `
+Кнопка: «что с настроением».
+
+Сделай короткую фразу-наблюдение о состоянии человека.
+Это НЕ похвала и НЕ совет.
+
+Формат:
+смешная внутренняя сводка о настроении, но без слова «диспетчер».
+
+Направление:
+настроение помялось, день шуршит, облако сидит боком, лампа моргает, булочка задумалась.
+`.trim(),
+
+      wisdom: `
+Кнопка: «мудрость».
+
+Сделай короткую мягкую мысль дня.
+Это НЕ похвала и НЕ описание настроения.
+
+Формат:
+маленькое спокойное наблюдение о жизни, без учительства.
+
+Направление:
+можно не решать всё сразу, пауза тоже действие, день не требует героизма, тишина иногда умнее спешки.
+`.trim(),
+
+      praise: `
+Кнопка: «похвали меня».
+
+Сделай короткую прямую похвалу человеку.
+Это НЕ настроение и НЕ совет.
+
+Формат:
+фраза должна начинаться с «Ты...» или «В тебе...».
+Конкретно, тепло, без мотивационного плаката.
+
+Направление:
+ты замечаешь тонкое, ты не огрубела, в тебе есть живая сила, ты умеешь быть настоящей.
+`.trim(),
     };
 
     if (!type || !prompts[type]) {
       return res.status(400).json({
         error: "Invalid type",
         details: "Use one of: mood, wisdom, praise",
-        version: "yandex-500-clean",
+        version: "yandex-short-distinct-v1",
       });
     }
 
@@ -58,27 +94,42 @@ export default async function handler(req, res) {
 Это маленький авторский оракул поддержки.
 Это не чат-бот и не психологическая консультация.
 
-Стиль:
+Общие правила:
 - русский язык
-- абсурдно-нежный
-- тёплый
-- немного смешной
-- живой, не корпоративный
+- одна готовая фраза
+- 1 предложение
+- максимум 130 символов
+- без вариантов
+- без пояснений
+- без кавычек
+- живой, тёплый, немного смешной стиль
+- без корпоративного тона
 - без токсичного позитива
 - без эзотерики
 - без диагнозов
 - без советов обратиться к специалисту
 - без обещаний, что всё точно будет хорошо
 - без банальностей вроде «ты всё сможешь», «верь в себя», «будь лучшей версией себя»
-- 1–2 предложения
-- до 260 символов
-- только одна готовая фраза
-- без вариантов
-- без пояснений
-- без кавычек
 
-Можно использовать мягкий абсурд:
-внутренний ёжик, лампа, булочка, диспетчер, облако, самовар, маленькая радость.
+Запрещено:
+- не используй слово «диспетчер»
+- не используй фразу «внутренний диспетчер»
+- не используй слово «внутренний» чаще чем в 1 ответе из 10
+- не начинай все фразы одинаково
+- не пиши длинно
+- не смешивай типы кнопок
+
+Различия между кнопками:
+1. mood — смешное наблюдение о текущем состоянии. Не хвалить. Не советовать.
+2. wisdom — маленькая мысль дня. Не хвалить. Не описывать настроение.
+3. praise — прямая похвала человеку. Не давать совет. Не делать сводку настроения.
+
+Для mood можно использовать мягкий абсурд:
+лампа, булочка, облако, самовар, носок, чайник, карман, плед, маленькая радость, смешной свет, кривой воротник.
+
+Для wisdom меньше абсурда, больше тихой ясности.
+
+Для praise меньше абсурда, больше прямого тёплого признания ценности человека.
 `.trim();
 
     const yandexResponse = await fetch("https://ai.api.cloud.yandex.net/v1/responses", {
@@ -90,8 +141,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: `gpt://${folderId}/deepseek-v32/latest`,
-        temperature: 0.7,
-        max_output_tokens: 500,
+        temperature: 0.65,
+        max_output_tokens: 220,
         instructions,
         input: prompts[type],
       }),
@@ -107,7 +158,7 @@ export default async function handler(req, res) {
         error: "Yandex AI returned non-JSON response",
         status: 500,
         details: rawText,
-        version: "yandex-500-clean",
+        version: "yandex-short-distinct-v1",
       });
     }
 
@@ -116,7 +167,7 @@ export default async function handler(req, res) {
         error: "Yandex AI request failed",
         status: yandexResponse.status,
         details: data,
-        version: "yandex-500-clean",
+        version: "yandex-short-distinct-v1",
       });
     }
 
@@ -144,20 +195,46 @@ export default async function handler(req, res) {
         error: "Empty Yandex AI response",
         status: 500,
         details: data,
-        version: "yandex-500-clean",
+        version: "yandex-short-distinct-v1",
       });
     }
 
+    message = cleanMessage(message);
+
     return res.status(200).json({
-      message: message.trim(),
-      version: "yandex-500-clean",
+      message,
+      version: "yandex-short-distinct-v1",
     });
   } catch (err) {
     return res.status(500).json({
       error: "Server error",
       status: 500,
       details: err.message,
-      version: "yandex-500-clean",
+      version: "yandex-short-distinct-v1",
     });
   }
+}
+
+function cleanMessage(message) {
+  let cleaned = String(message || "").trim();
+
+  cleaned = cleaned.replace(/^["«“”]+/, "");
+  cleaned = cleaned.replace(/["»“”]+$/, "");
+  cleaned = cleaned.replace(/\s+/g, " ");
+
+  cleaned = cleaned.replace(/внутренний диспетчер/gi, "маленький самовар");
+  cleaned = cleaned.replace(/диспетчер/gi, "самовар");
+
+  if (cleaned.length > 170) {
+    cleaned = cleaned.slice(0, 167).trim();
+
+    const lastSpaceIndex = cleaned.lastIndexOf(" ");
+    if (lastSpaceIndex > 80) {
+      cleaned = cleaned.slice(0, lastSpaceIndex).trim();
+    }
+
+    cleaned = `${cleaned}...`;
+  }
+
+  return cleaned;
 }
