@@ -79,25 +79,41 @@ function isGoodMessage(text) {
   ];
 
   const lower = text.toLowerCase();
+
   return !forbidden.some(word => lower.includes(word));
 }
 
 export default async function handler(request, response) {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (request.method === "OPTIONS") {
+    return response.status(200).end();
+  }
+
   if (request.method !== "POST") {
-    return response.status(405).json({ error: "Method not allowed" });
+    return response.status(405).json({
+      error: "Method not allowed"
+    });
   }
 
   try {
     const { type } = request.body || {};
 
     if (!ALLOWED_TYPES.includes(type)) {
-      return response.status(400).json({ error: "Unknown generation type" });
+      return response.status(400).json({
+        error: "Unknown generation type",
+        receivedType: type
+      });
     }
 
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
     if (!apiKey) {
-      return response.status(500).json({ error: "Missing DeepSeek API key" });
+      return response.status(500).json({
+        error: "Missing DeepSeek API key"
+      });
     }
 
     const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
@@ -124,18 +140,32 @@ export default async function handler(request, response) {
     });
 
     if (!deepseekResponse.ok) {
-      return response.status(502).json({ error: "DeepSeek request failed" });
+      const errorText = await deepseekResponse.text();
+
+      return response.status(502).json({
+        error: "DeepSeek request failed",
+        status: deepseekResponse.status,
+        details: errorText
+      });
     }
 
     const data = await deepseekResponse.json();
     const message = cleanMessage(data?.choices?.[0]?.message?.content);
 
     if (!isGoodMessage(message)) {
-      return response.status(422).json({ error: "Generated message did not pass validation" });
+      return response.status(422).json({
+        error: "Generated message did not pass validation",
+        message
+      });
     }
 
-    return response.status(200).json({ message });
+    return response.status(200).json({
+      message
+    });
   } catch (error) {
-    return response.status(500).json({ error: "Server error" });
+    return response.status(500).json({
+      error: "Server error",
+      details: error?.message || String(error)
+    });
   }
 }
