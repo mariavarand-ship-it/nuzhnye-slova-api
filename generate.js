@@ -145,3 +145,12 @@ export default async function handler(request, response) {
     return response.status(500).json({ error: "Server error" });
   }
 }
+if (!deepseekResponse.ok) {
+  const errorText = await deepseekResponse.text();
+
+  return response.status(502).json({
+    error: "DeepSeek request failed",
+    status: deepseekResponse.status,
+    details: errorText
+  });
+}
