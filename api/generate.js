@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(405).json({
       error: "Method not allowed",
       details: "Use POST request",
-      version: "yandex-distinct-buttons-v6",
+      version: "nuzhnye-slova-v7",
     });
   }
 
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
       return res.status(500).json({
         error: "Missing YANDEX_CLOUD_API_KEY",
         details: "Add YANDEX_CLOUD_API_KEY in Vercel Environment Variables",
-        version: "yandex-distinct-buttons-v6",
+        version: "nuzhnye-slova-v7",
       });
     }
 
@@ -31,47 +31,46 @@ export default async function handler(req, res) {
       return res.status(500).json({
         error: "Missing YANDEX_CLOUD_FOLDER",
         details: "Add YANDEX_CLOUD_FOLDER in Vercel Environment Variables",
-        version: "yandex-distinct-buttons-v6",
+        version: "nuzhnye-slova-v7",
       });
     }
 
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body;
     const type = body?.type;
 
+    const rawName = (body?.name || "").toString().trim();
+    const name = rawName ? sanitizeName(rawName) : "солнышко";
+
     const prompts = {
       mood: `
 Кнопка: «Поднять настроение».
+Имя человека: ${name}.
 
-Жанр: маленькая приятная глупость.
-Нужно: смешная, тёплая, немного абсурдная фраза, чтобы человеку стало легче.
-Не нужно: совет, мудрость, похвала, анализ состояния.
-
-Пиши как милый нелепый оракул.
-Можно: булочка, облако, самовар, носок, чайник, лампа, плед, карман, смешной свет.
-Фраза должна быть весёлой или нежно-дурацкой.
+Напиши одну тёплую фразу с лёгкой чудинкой, чтобы человеку стало легче.
+Обязательно обратись к человеку по имени «${name}» внутри фразы — естественно, не обязательно в самом начале.
+Это маленькая приятная нелепость, а не совет и не похвала.
+Можно придумывать свои тёплые образы (предметы, погода, мелкие домашние чудеса) — фантазируй свободно, не повторяй одно и то же.
+Пусть будет нежно, чуть смешно и живо.
 `.trim(),
 
       wisdom: `
 Кнопка: «Совет дня».
+Имя человека: ${name}.
 
-Жанр: мягкий практический совет.
-Нужно: предложить человеку маленькое действие или другой взгляд на ситуацию.
-Не нужно: похвала, абсурд ради абсурда, просто описание настроения.
-
-Фраза должна звучать как спокойный умный совет без давления.
-Можно начинать с: «попробуй», «сегодня можно», «посмотри», «оставь», «не решай».
+Напиши один тихий, добрый совет — маленькое действие или мягкий новый взгляд.
+Обязательно обратись к человеку по имени «${name}» внутри фразы — естественно, не обязательно в начале.
+Без клоунады, без похвалы, без давления. Спокойно и по-человечески.
+Лёгкая тёплая образность допустима, но смысл — в совете.
 `.trim(),
 
       praise: `
 Кнопка: «Похвалить».
+Имя человека: ${name}.
 
-Жанр: тёплая нежная похвала.
-Нужно: признать в человеке что-то хорошее, живое, настоящее.
-Добавь немного мудрости и очень лёгкий абсурд, но не превращай в шутку.
-Не нужно: совет, описание настроения, мотивационный плакат.
-
-Фраза должна начинаться с «ты» или «в тебе».
-Пусть звучит как бережное признание ценности.
+Напиши тёплую нежную похвалу — признай в человеке что-то живое и настоящее.
+Обязательно обратись к человеку по имени «${name}» внутри фразы — естественно, не обязательно в начале.
+НЕ начинай фразу со слова «ты». Вплети мысль о человеке мягко и по-новому.
+Можно добавить лёгкую тёплую образность, но это не шутка, а бережное признание ценности.
 `.trim(),
     };
 
@@ -79,66 +78,30 @@ export default async function handler(req, res) {
       return res.status(400).json({
         error: "Invalid type",
         details: "Use one of: mood, wisdom, praise",
-        version: "yandex-distinct-buttons-v6",
+        version: "nuzhnye-slova-v7",
       });
     }
 
     const instructions = `
-Ты пишешь для проекта «Нужные слова».
-
+Ты пишешь для проекта «Нужные слова» — маленького авторского оракула поддержки.
 Это не чат-бот и не психологическая консультация.
-Это маленький авторский оракул поддержки.
 
-Формат:
+Стиль: тёплый абсурд в духе Хармса и Хлебникова — но мягкий, среднее количество странности.
+Тепло, нежно, живо, по-человечески. Чуть-чуть чудинки, но без перегиба.
+
+Формат ответа:
 - русский язык
-- одна готовая фраза
-- 1 предложение
+- одна готовая фраза, одно предложение
 - до 130 символов
-- без кавычек
-- без пояснений
-- без вариантов
+- внутри фразы обязательно звучит имя человека
+- без кавычек, без пояснений, без вариантов, без эмодзи
 
-Общий стиль:
-- живо
-- тепло
-- нежно
-- не корпоративно
-- без токсичного позитива
-- без эзотерики
-- без диагнозов
-- без «ты всё сможешь»
-- без «верь в себя»
-- без «будь лучшей версией себя»
+Категорически избегай:
+- токсичного позитива («ты всё сможешь», «верь в себя», «будь лучшей версией себя»)
+- корпоративности, канцелярита, эзотерики, диагнозов
+- повторов одних и тех же образов от ответа к ответу — каждый раз придумывай свежее
 
-Жёстко запрещённые слова:
-внутренний, ёжик, ежик, диспетчер.
-
-Кнопки должны сильно отличаться:
-
-1. mood / «Поднять настроение»
-Это НЕ совет и НЕ похвала.
-Это приятная глупость, маленький абсурд, смешной образ.
-Должно быть легче, теплее, чуть веселее.
-Пример направления: «облако принесло булочку и делает вид, что так и надо».
-
-2. wisdom / «Совет дня»
-Это именно совет.
-Дай маленькое действие или новый взгляд.
-Без клоунады.
-Без похвалы.
-Пример направления: «сегодня можно не решать всё, а выбрать один тихий следующий шаг».
-
-3. praise / «Похвалить»
-Это именно похвала человеку.
-Тёплая, нежная, мудрая.
-Можно чуть-чуть абсурда, но смысл должен быть в признании ценности.
-Начинай с «ты» или «в тебе».
-Пример направления: «ты умеешь оставаться живой даже там, где день просит стать камнем».
-
-Не смешивай жанры.
-Если type = mood — не советуй.
-Если type = wisdom — дай совет.
-Если type = praise — хвали человека.
+Не смешивай жанры: настроение — это нелепая лёгкость; совет — это совет; похвала — это признание ценности.
 `.trim();
 
     const yandexResponse = await fetch("https://ai.api.cloud.yandex.net/v1/responses", {
@@ -150,7 +113,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: `gpt://${folderId}/deepseek-v32/latest`,
-        temperature: type === "mood" ? 0.85 : type === "praise" ? 0.75 : 0.55,
+        temperature: type === "mood" ? 0.9 : type === "praise" ? 0.8 : 0.6,
         max_output_tokens: 600,
         instructions,
         input: prompts[type],
@@ -167,7 +130,7 @@ export default async function handler(req, res) {
         error: "Yandex AI returned non-JSON response",
         status: 500,
         details: rawText,
-        version: "yandex-distinct-buttons-v6",
+        version: "nuzhnye-slova-v7",
       });
     }
 
@@ -176,7 +139,7 @@ export default async function handler(req, res) {
         error: "Yandex AI request failed",
         status: yandexResponse.status,
         details: data,
-        version: "yandex-distinct-buttons-v6",
+        version: "nuzhnye-slova-v7",
       });
     }
 
@@ -187,24 +150,30 @@ export default async function handler(req, res) {
         error: "Empty Yandex AI response",
         status: 500,
         details: data,
-        version: "yandex-distinct-buttons-v6",
+        version: "nuzhnye-slova-v7",
       });
     }
 
-    message = cleanMessage(message, type);
+    message = cleanMessage(message, name);
 
     return res.status(200).json({
       message,
-      version: "yandex-distinct-buttons-v6",
+      version: "nuzhnye-slova-v7",
     });
   } catch (err) {
     return res.status(500).json({
       error: "Server error",
       status: 500,
       details: err.message,
-      version: "yandex-distinct-buttons-v6",
+      version: "nuzhnye-slova-v7",
     });
   }
+}
+
+function sanitizeName(value) {
+  let n = String(value).replace(/[<>{}"'`]/g, "").trim();
+  if (n.length > 40) n = n.slice(0, 40).trim();
+  return n || "солнышко";
 }
 
 function extractMessage(data) {
@@ -227,62 +196,44 @@ function extractMessage(data) {
   return "";
 }
 
-function cleanMessage(message, type) {
+function cleanMessage(message, name) {
   let cleaned = String(message || "").trim();
 
   cleaned = cleaned.replace(/^["«“”]+/, "");
   cleaned = cleaned.replace(/["»“”]+$/, "");
   cleaned = cleaned.replace(/\s+/g, " ");
 
-  cleaned = cleaned.replace(/внутренний диспетчер/gi, "маленький самовар");
-  cleaned = cleaned.replace(/внутренний ёжик/gi, "маленький самовар");
-  cleaned = cleaned.replace(/внутренний ежик/gi, "маленький самовар");
+  cleaned = cleaned.replace(/ёжик/gi, "котёнок");
+  cleaned = cleaned.replace(/ежик/gi, "котёнок");
   cleaned = cleaned.replace(/диспетчер/gi, "самовар");
-  cleaned = cleaned.replace(/ёжик/gi, "самовар");
-  cleaned = cleaned.replace(/ежик/gi, "самовар");
-  cleaned = cleaned.replace(/внутренний/gi, "маленький");
 
-  cleaned = cleaned.replace(/тусклая лампа/gi, "лампа, которая всё-таки греет");
-  cleaned = cleaned.replace(/плохим контактом/gi, "с нежным мерцанием");
-
-  if (type === "mood") {
-    cleaned = cleaned.replace(/^моё настроение/gi, "настроение");
-    cleaned = cleaned.replace(/^твоё настроение/gi, "настроение");
-  }
-
-  if (type === "praise") {
-    cleaned = cleaned.replace(/^ты молодец[.!]?/i, "ты умеешь оставаться живой и настоящей");
-    cleaned = cleaned.replace(/^ты умница[.!]?/i, "ты бережно несёшь в себе много настоящего");
-
-    if (!/^ты\b/i.test(cleaned) && !/^в тебе\b/i.test(cleaned)) {
-      cleaned = `ты ${cleaned.charAt(0).toLocaleLowerCase("ru-RU") + cleaned.slice(1)}`;
-    }
-  }
-
-  if (type === "wisdom") {
-    const startsLikeAdvice =
-      /^(попробуй|сегодня можно|можно|посмотри|оставь|не решай|выбери|дай|сделай|позволь)/i.test(cleaned);
-
-    if (!startsLikeAdvice) {
-      cleaned = `сегодня можно ${cleaned.charAt(0).toLocaleLowerCase("ru-RU") + cleaned.slice(1)}`;
-    }
-  }
+  cleaned = cleaned.replace(/\b(\p{L}+)\s+\1\b/giu, "$1");
 
   const sentences = cleaned.match(/[^.!?]+[.!?]?/g);
   if (sentences && sentences.length > 0) {
     cleaned = sentences[0].trim();
   }
 
-  if (cleaned.length > 145) {
-    cleaned = cleaned.slice(0, 142).trim();
+  if (name && !cleaned.toLowerCase().includes(name.toLowerCase())) {
+    cleaned = `${capitalize(name)}, ${lowerFirst(cleaned)}`;
+  }
 
-    const lastSpaceIndex = cleaned.lastIndexOf(" ");
-    if (lastSpaceIndex > 70) {
-      cleaned = cleaned.slice(0, lastSpaceIndex).trim();
-    }
-
+  if (cleaned.length > 150) {
+    cleaned = cleaned.slice(0, 147).trim();
+    const lastSpace = cleaned.lastIndexOf(" ");
+    if (lastSpace > 70) cleaned = cleaned.slice(0, lastSpace).trim();
     cleaned = `${cleaned}...`;
   }
 
   return cleaned;
+}
+
+function capitalize(text) {
+  if (!text) return text;
+  return text.charAt(0).toLocaleUpperCase("ru-RU") + text.slice(1);
+}
+
+function lowerFirst(text) {
+  if (!text) return text;
+  return text.charAt(0).toLocaleLowerCase("ru-RU") + text.slice(1);
 }
